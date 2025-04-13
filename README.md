@@ -1,4 +1,4 @@
-# After Effects MCP Server
+# After Effects MCP Server 🎬
 
 This Model Context Protocol (MCP) server connects AI assistants (like Claude, or any MCP-compatible client) to Adobe After Effects. It enables remote control and automation of After Effects projects using ExtendScript, bridging the gap between natural language commands and complex AE tasks.
 
