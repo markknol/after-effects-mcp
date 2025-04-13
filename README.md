@@ -1,226 +1,235 @@
 # After Effects MCP Server 🎬
 
-This Model Context Protocol (MCP) server connects AI assistants (like Claude, or any MCP-compatible client) to Adobe After Effects. It enables remote control and automation of After Effects projects using ExtendScript, bridging the gap between natural language commands and complex AE tasks.
+**Connect AI assistants to Adobe After Effects!**
 
-## Features
+This project acts as a bridge (using the Model Context Protocol - MCP) allowing AI tools (like Claude, Cursor, etc.) to remotely control Adobe After Effects. You can ask the AI to perform common tasks like creating compositions, adding text, shapes, or solids, and modifying layer properties, all through natural language or simple commands.
 
-*   **Composition Management:**
-    *   List all compositions and their properties (`listCompositions`).
-    *   Create new compositions with specific settings (`createComposition` / `mcp_aftereffects_create_composition` tool).
-    *   Get general project information (`getProjectInfo`).
-*   **Layer Creation:**
-    *   Create Text Layers with custom content, font, size, color, alignment, position, and timing (`createTextLayer`).
-    *   Create Shape Layers (Rectangle, Ellipse, Polygon/Star) with control over size, position, fill, stroke, and timing (`createShapeLayer`).
-    *   Create Solid Layers (including Adjustment Layers) with custom color, size, position, and timing (`createSolidLayer`).
-*   **Layer Manipulation:**
-    *   Modify properties of existing layers (Position, Scale, Rotation, Opacity, Start Time, Duration) using `setLayerProperties`.
-    *   Update text content and style (Font Family, Font Size, Fill Color) for existing Text Layers using `setLayerProperties`.
-    *   Get basic information about layers in the active composition (`getLayerInfo`).
-*   **Remote Execution:** Run predefined, allowed ExtendScript functions within After Effects via the `mcp_aftereffects_run_script` tool.
-*   **MCP Integration:** Exposes functionality through standard MCP tools and resources.
+It works by running a small server locally that listens for commands from the AI and translates them into actions within After Effects using its native scripting language (ExtendScript).
 
-## Installation
+---
+
+**Table of Contents**
+
+*   [✨ Features](#-features)
+*   [🚀 Quick Start](#-quick-start)
+*   [🛠️ Installation & Setup](#️-installation--setup)
+*   [💻 Usage](#-usage)
+    *   [Running the Server & Bridge](#running-the-server--bridge)
+    *   [Example Commands](#example-commands)
+*   [⚙️ Available Commands (Detailed)](#️-available-commands-detailed)
+    *   [Dedicated MCP Tools](#dedicated-mcp-tools)
+    *   [Scripts via `run-script`](#scripts-via-run-script)
+*   [❓ Troubleshooting](#-troubleshooting)
+*   [🔒 Security](#-security)
+*   [🤝 Contributing](#-contributing)
+    *   [Development Setup](#development-setup)
+    *   [Adding New Features](#adding-new-features)
+*   [📜 License](#-license)
+
+---
+
+## ✨ Features
+
+*   **View Project Info:** Get details about compositions and the overall project.
+*   **Create Compositions:** Make new compositions with custom sizes, durations, backgrounds, etc.
+*   **Create Layers:**
+    *   **Text:** Add text with specific fonts, sizes, colors, and placement.
+    *   **Shapes:** Add rectangles, ellipses, stars, or polygons with colors and strokes.
+    *   **Solids & Adjustment Layers:** Add solid color backgrounds or adjustment layers for effects.
+*   **Modify Layers:** Change properties like position, scale, rotation, opacity, timing, and text content/style after creation.
+*   **MCP Compatible:** Works with AI assistants and tools that support the Model Context Protocol.
+
+---
+
+## 🚀 Quick Start
+
+1.  **Install:** Clone the repo, run `npm install`, then `npm run build`, then `node install-bridge.js` (with `sudo` on macOS if needed).
+2.  **Configure AE:** Allow scripts to Write Files and Access Network in AE Preferences (`Edit > Preferences > Scripting & Expressions`).
+3.  **Run AE Bridge:** Open After Effects, then open the panel via `Window > mcp-bridge-auto.jsx`. Keep it open.
+4.  **Run Server:** In your terminal (in the project folder), run `npm run start`.
+5.  **Connect AI:** Configure your MCP client (if needed) and start interacting!
+
+*(See [Installation & Setup](#️-installation--setup) for more details)*
+
+---
+
+## 🛠️ Installation & Setup
+
+Follow these steps to get the server running:
 
 1.  **Prerequisites:**
-    *   Node.js (LTS version recommended)
-    *   Adobe After Effects (tested with version 2024, may work with others)
+    *   Node.js (LTS version recommended - download from [nodejs.org](https://nodejs.org/))
+    *   Adobe After Effects (e.g., version 2024)
 2.  **Clone Repository:**
+    Get the code onto your computer.
     ```bash
-    # Replace with your actual repository URL if different
+    # Replace with the correct URL if you forked it
     git clone https://github.com/daxgalt/after-effects-mcp.git
     cd after-effects-mcp
     ```
 3.  **Install Dependencies:**
+    This downloads the necessary helper libraries for the server.
     ```bash
     npm install
     ```
 4.  **Build the Server:**
+    This prepares the server code to be run.
     ```bash
     npm run build
     ```
-5.  **Install AE Bridge Script:** (requires administrator privileges)
+5.  **Install After Effects Bridge Script:**
+    This copies the communication panel script into After Effects. You'll likely need administrator rights.
     ```bash
+    # Windows (run in an Admin terminal)
     node install-bridge.js
-    # On macOS, you might need: sudo node install-bridge.js
+
+    # macOS
+    sudo node install-bridge.js
     ```
-    This copies the necessary `mcp-bridge-auto.jsx` to the After Effects `Scripts/ScriptUI Panels` folder.
-6.  **Configure After Effects:**
-    *   Launch After Effects.
-    *   Enable scripting permissions: `Edit > Preferences > Scripting & Expressions` (or `After Effects > Settings > Scripting & Expressions` on macOS).
-    *   Check **"Allow Scripts to Write Files and Access Network"**.
-7.  **(Optional) Configure MCP Client:**
-    *   Update your MCP client (e.g., Claude Desktop `claude_desktop_config.json`) to point to the server. Replace `C:\\\\path\\\\to\\\\after-effects-mcp` with the actual path to this repository folder on your system.
+    *Troubleshooting:* If this fails, manually copy `build/scripts/mcp-bridge-auto.jsx` to your After Effects `Scripts/ScriptUI Panels` folder. ([Find Script Folders](https://helpx.adobe.com/after-effects/using/scripts.html#InstallaScript))
+6.  **Configure After Effects Permissions:**
+    *   Start After Effects.
+    *   Go to `Edit > Preferences > Scripting & Expressions` (Windows) or `After Effects > Settings > Scripting & Expressions` (macOS).
+    *   **Check the box:** `Allow Scripts to Write Files and Access Network`. This is required for the bridge panel to work. Click OK.
+7.  **(Optional) Configure Your AI/MCP Client:**
+    *   If your AI tool needs explicit configuration (like Claude Desktop), you'll need to tell it how to run this server. Edit its configuration file (e.g., `%APPDATA%\Claude\claude_desktop_config.json` on Windows) to add an entry like this, **making sure to use the correct full path** to where you cloned *this* repository:
     ```json
     {
       "mcpServers": {
         "after-effects": {
           "command": "node",
           "args": [
-            "C:\\\\path\\\\to\\\\after-effects-mcp\\\\build\\\\index.js"
+            "C:\\Users\\YourUser\\path\\to\\after-effects-mcp\\build\\index.js" // <-- CHANGE THIS PATH!
           ]
         }
       }
     }
     ```
+    *   Other tools might automatically detect MCP servers or have different configuration methods.
 
-## Usage
+---
 
-1.  **Start After Effects** and open a project (or create a new one).
-2.  **Open the MCP Bridge Panel:** In After Effects, go to `Window > mcp-bridge-auto.jsx`. Ensure the panel is open and the "Auto-run commands" checkbox is checked.
-3.  **Start the MCP Server:** From your terminal in the repository directory:
+## 💻 Usage
+
+### Running the Server & Bridge
+
+For the AI to control After Effects, both AE and the server must be running:
+
+1.  **Start After Effects:** Open your AE project.
+2.  **Open the Bridge Panel:** In After Effects, go to `Window > mcp-bridge-auto.jsx`. A small panel should appear.
+    *   **Crucially:** Keep this panel open while you want the AI connection to work.
+    *   Make sure the "Auto-run commands" checkbox inside the panel is checked.
+3.  **Start the MCP Server:** Open your terminal/command prompt, navigate to the `after-effects-mcp` folder you cloned, and run:
     ```bash
     npm run start
-    # Or: node build/index.js
     ```
-4.  **Connect your MCP Client** (e.g., launch Claude Desktop if configured, or use another MCP tool).
-5.  **Interact:** Ask your AI assistant to perform tasks using the available tools and scripts, or call the tools directly.
+    Leave this terminal window running.
+4.  **Use your AI:** Now, connect and interact with your MCP-compatible AI tool.
 
-### Example MCP Tool Calls
+### Example Commands
 
-*(These examples assume you are using an MCP client capable of calling tools with parameters, like Cursor)*
+Here are examples of how an AI (like Cursor) might call the available tools:
 
 *   **Create a Composition:**
     ```javascript
-    // Using the dedicated tool
     mcp_aftereffects_create_composition({
-      name: "My Awesome Comp",
-      width: 1920, height: 1080,
-      duration: 15, frameRate: 24,
-      backgroundColor: { r: 50, g: 50, b: 50 }
-    });
-
-    // Using run-script (alternative)
-    mcp_aftereffects_run_script({
-      script: "createComposition",
-      parameters: { /* same parameters as above */ }
+      name: "Intro Scene", width: 1920, height: 1080, duration: 5
     });
     ```
-*   **Create a Text Layer:**
+*   **Add Text:**
     ```javascript
     mcp_aftereffects_run_script({
       script: "createTextLayer",
-      parameters: {
-        compName: "My Awesome Comp",
-        text: "Hello MCP!",
-        fontFamily: "Arial", fontSize: 100,
-        position: [960, 540],
-        color: [1, 1, 0] // Yellow
-      }
+      parameters: { compName: "Intro Scene", text: "My Title", fontSize: 150 }
     });
     ```
-*   **Create a Shape Layer:**
+*   **Add a Shape:**
     ```javascript
     mcp_aftereffects_run_script({
       script: "createShapeLayer",
-      parameters: {
-        compName: "My Awesome Comp",
-        name: "Red Circle",
-        shapeType: "ellipse", size: [300, 300],
-        fillColor: [1, 0, 0],
-        position: [400, 540],
-        strokeWidth: 0
-      }
+      parameters: { compName: "Intro Scene", shapeType: "rectangle", size: [500, 100], fillColor: [0, 0.5, 0.5] }
     });
     ```
-*   **Create an Adjustment Layer:**
-    ```javascript
-    mcp_aftereffects_run_script({
-      script: "createSolidLayer",
-      parameters: {
-        compName: "My Awesome Comp",
-        name: "Effects Adjuster",
-        isAdjustment: true,
-        duration: 15
-      }
-    });
-    ```
-*   **Modify Layer Properties (e.g., change text font and scale):**
+*   **Change Text Font:**
     ```javascript
     mcp_aftereffects_run_script({
       script: "setLayerProperties",
-      parameters: {
-        compName: "My Awesome Comp",
-        layerName: "Hello MCP!", // Target the text layer by name
-        fontFamily: "Impact",
-        fontSize: 120,
-        scale: [110, 110] // Scale up slightly
-      }
+      parameters: { compName: "Intro Scene", layerName: "My Title", fontFamily: "Verdana" }
     });
     ```
-*   **List Compositions:**
-    ```javascript
-    mcp_aftereffects_run_script({ script: "listCompositions" });
-    ```
-*   **Get Results:** (After running an asynchronous command like `createComposition` or `run-script`)
+*   **Check Results:** (Needed after `run_script` calls to see success/error messages)
     ```javascript
     mcp_aftereffects_get_results({});
     ```
 
-## Available Tools & Scripts
+---
 
-This server exposes functionality through dedicated MCP tools and allowed scripts run via the `mcp_aftereffects_run_script` tool.
+## ⚙️ Available Commands (Detailed)
+
+The server provides control through these MCP tools:
 
 ### Dedicated MCP Tools
 
-*   `mcp_aftereffects_create_composition`: Creates a new composition (provides typed parameters).
-*   `mcp_aftereffects_get_results`: Retrieves results from the last asynchronous script execution.
-*   `mcp_aftereffects_get_help`: Provides basic help text.
+These are distinct tools your AI client might see.
 
-### Scripts Callable via `mcp_aftereffects_run_script`
+*   `mcp_aftereffects_create_composition(name, width, height, ...)`: Creates a new composition. Provides clear parameters for the AI.
+*   `mcp_aftereffects_get_results()`: Gets the outcome (success message or error details) of the *last* command sent via `run_script` or `create_composition`. Important for checking if things worked.
+*   `mcp_aftereffects_get_help()`: Shows basic instructions.
+*   `mcp_aftereffects_run_script(script, parameters)`: The most versatile tool. Executes one of the allowed ExtendScript functions defined in the bridge. See list below.
 
-*(Use the `script` parameter for the name and `parameters` for the arguments object)*
+### Scripts via `run-script`
 
-*   `getProjectInfo`: Returns project metadata.
-*   `listCompositions`: Lists all compositions and their properties.
-*   `getLayerInfo`: Returns basic info about layers in the *active* composition.
-*   `createComposition`: Creates a new composition (alternative to dedicated tool).
-*   `createTextLayer`: Creates text layers with styling and timing.
-*   `createShapeLayer`: Creates shape layers (rectangle, ellipse, polygon, star) with styling and timing.
-*   `createSolidLayer`: Creates solid or adjustment layers with timing.
-*   `setLayerProperties`: Modifies properties (transform, opacity, timing, text content/style) of existing layers.
+You use the `mcp_aftereffects_run_script` tool to call these, specifying the `script` name (string) and a `parameters` object.
 
-## Troubleshooting
+*   `getProjectInfo`: Gets info about the AE project. (No parameters needed).
+*   `listCompositions`: Lists compositions in the project. (No parameters needed).
+*   `getLayerInfo`: Lists basic info (name, index, timing) for layers in the *currently active* composition. (No parameters needed).
+*   `createComposition`: Alternative way to create a composition. (Params: `name`, `width`, `height`, `pixelAspect`, `duration`, `frameRate`, `backgroundColor`).
+*   `createTextLayer`: Adds a text layer. (Params: `compName`, `text`, `position`, `fontSize`, `color`, `startTime`, `duration`, `fontFamily`, `alignment`).
+*   `createShapeLayer`: Adds a shape layer. (Params: `compName`, `shapeType` ["rectangle", "ellipse", "polygon", "star"], `position`, `size`, `fillColor`, `strokeColor`, `strokeWidth`, `startTime`, `duration`, `name`, `points` [for polygon/star]).
+*   `createSolidLayer`: Adds a solid or adjustment layer. (Params: `compName`, `color` [for solid], `name`, `position`, `size`, `startTime`, `duration`, `isAdjustment` [boolean]).
+*   `setLayerProperties`: Modifies an existing layer. (Params: `compName`, `layerName` OR `layerIndex`, `position`, `scale`, `rotation`, `opacity`, `startTime`, `duration`, `text`, `fontFamily`, `fontSize`, `fillColor`).
 
-*   **"Unknown Command" Errors:** Ensure the `mcp-bridge-auto.jsx` panel is running in AE, the server was rebuilt (`npm run build`), and scripts reinstalled (`node install-bridge.js`) after code changes. Check the `allowedScripts` array in `src/index.ts`.
-*   **"Cannot Access Property/Method" / TypeErrors:** Often indicates an issue within the ExtendScript code (`mcp-bridge-auto.jsx`). Check AE console (`Window > Console`) or ExtendScript Toolkit for errors. The logs in the MCP Bridge panel might also show the error.
-*   **Composition Not Found:** Make sure the target composition name is spelled correctly and the composition is open in AE. Having the composition panel active can sometimes help.
-*   **File Access Errors:** Verify AE has permissions (`Preferences > Scripting & Expressions > Allow Scripts to Write Files...`) and check permissions for the system temporary directory where `ae_command.json` and `ae_mcp_result.json` are written.
-*   **Font Not Applied:** Ensure the specified `fontFamily` name matches exactly how it appears in After Effects. Not all fonts may be accessible to ExtendScript depending on installation and type. Try standard system fonts first.
-*   **Check Panel Logs:** The "Command Log" within the `mcp-bridge-auto.jsx` panel in AE provides valuable debugging information, especially with the detailed logging we added.
+---
 
-   ![MCP Bridge Auto panel in After Effects](./assets/MCP%20Auto%20Bridge.png)
+## ❓ Troubleshooting
 
-   *The MCP Bridge Auto panel showing logs*
+*   **Check AE Permissions:** Ensure `Allow Scripts to Write Files and Access Network` is enabled in AE Preferences.
+*   **Bridge Panel Open?:** The `mcp-bridge-auto.jsx` panel *must* be open in After Effects. Check under the `Window` menu.
+*   **Server Running?:** The `npm run start` command must be running in your terminal.
+*   **Rebuild/Reinstall:** After changing *any* code (`.ts` or `.jsx`), you **must** run `npm run build` and potentially `node install-bridge.js` (if `mcp-bridge-auto.jsx` changed), then **restart** both the server and After Effects.
+*   **Check Panel Logs:** The "Command Log" inside the AE bridge panel is your best friend! It shows received commands and errors happening within AE.
+*   **Check Server Logs:** The terminal window where you ran `npm run start` will show server-side logs and errors.
+*   **File Paths:** Double-check the path used in your MCP client configuration (if any). Ensure the AE executable path in `src/index.ts` is correct for your system (though the bridge panel method avoids needing this).
+*   **Temp Folder Permissions:** Ensure the system's temporary folder is writable by After Effects.
 
-## Security
+---
 
-This server uses an allow-list (`allowedScripts` in `src/index.ts`) to restrict executable scripts. Only scripts present in this list and the defined MCP tools can be triggered remotely. Use caution if adding scripts that modify files or execute system commands.
+## 🔒 Security
 
-## Contributing
+The system uses an "allow-list" (`allowedScripts` in `src/index.ts`) for the `run-script` tool. Only function names explicitly added to this list can be executed, preventing arbitrary code execution. Be cautious if you add new scripts, especially any that interact with the file system or network outside of the intended MCP communication.
 
-Contributions are welcome! Please follow standard fork/pull request procedures.
+---
+
+## 🤝 Contributing
+
+Improvements and new features are welcome!
 
 ### Development Setup
 
-(Steps are the same as Installation steps 2-5)
+Follow Installation steps 2-5.
 
-### Development Workflow
+### Adding New Features
 
-1.  Make changes in the `src` directory (TypeScript server code in `index.ts` or ExtendScript functions in `mcp-bridge-auto.jsx`).
-2.  Rebuild: `npm run build`
-3.  Re-install AE script if `mcp-bridge-auto.jsx` was changed: `node install-bridge.js`
-4.  Restart the server: `npm run start`
-5.  Restart AE and reopen the bridge panel if needed.
-6.  Test changes thoroughly.
+1.  **Write ExtendScript:** Add your new function (e.g., `myNewFunction(args)`) directly inside `src/scripts/mcp-bridge-auto.jsx`. Make sure it accepts an `args` object and returns a JSON string indicating success or error.
+2.  **Register Function:** Add a `case "myNewFunction":` line inside the `switch` statement within the `executeCommand` function (in `mcp-bridge-auto.jsx`) to call your new function.
+3.  **Allow Script:** Add the exact string `"myNewFunction"` to the `allowedScripts` array in `src/index.ts`.
+4.  **Document:** Add your new script and its parameters to the "Available Tools & Scripts" section in this README.
+5.  **Build/Install/Restart:** Run `npm run build`, `node install-bridge.js`, restart the server and AE.
+6.  **Test!**
 
-### Adding New Functionality (Scripts)
+---
 
-1.  Add your new ExtendScript function directly into `src/scripts/mcp-bridge-auto.jsx` (following the consolidated pattern).
-2.  Add a new `case` to the `switch` statement in the `executeCommand` function within `mcp-bridge-auto.jsx` to call your new function.
-3.  Add the **string name** you used in the `case` statement to the `allowedScripts` array in `src/index.ts`.
-4.  Document the new script and its parameters in this README.
-5.  Rebuild, re-install, restart, and test.
+## 📜 License
 
-## License
-
-This project is licensed under the MIT License - see the `LICENSE` file for details.
+This project is licensed under the MIT License. See the `LICENSE` file for details.
