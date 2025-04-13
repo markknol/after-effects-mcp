@@ -5,7 +5,7 @@ yarn-error.log
 yarn-debug.log
 
 # Build directories
-build/temp/
+build/
 
 # IDEs and editors
 .vscode/

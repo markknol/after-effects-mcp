@@ -70,6 +70,7 @@ If Claude is unable to communicate with After Effects:
 1. Ensure the MCP Bridge panel is open in After Effects
    
    ![MCP Bridge Auto panel in After Effects](./assets/MCP%20Auto%20Bridge.png)
+   
    *The MCP Bridge Auto panel should be open and running in After Effects*
    
 2. Check that scripting permissions are enabled in After Effects:
@@ -84,7 +85,59 @@ This server only allows execution of pre-defined scripts to ensure safety. Only 
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions to improve the After Effects MCP Server are welcome! Here's how you can contribute:
+
+### Development Setup
+
+1. **Fork and clone the repository**
+   ```bash
+   git clone https://github.com/yourusername/after-effects-mcp.git
+   cd after-effects-mcp
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Build the project**
+   ```bash
+   npm run build
+   ```
+
+4. **Install the MCP Bridge in After Effects**
+   ```bash
+   npm run install-bridge
+   ```
+
+### Development Workflow
+
+1. **Make your changes** to the source code in the `src` directory
+2. **Build the project** to transpile TypeScript to JavaScript
+   ```bash
+   npm run build
+   ```
+3. **Test your changes** by running the server and connecting via Claude Desktop
+   ```bash
+   npm run start
+   ```
+
+### Adding New Scripts
+
+1. Create new ExtendScript files in the `src/scripts` directory
+2. Update the `allowedScripts` array in `src/index.ts` to include your new scripts
+3. Build the project to copy the scripts to the build folder
+
+### Pull Request Process
+
+1. Ensure your code follows the existing style
+2. Update the README.md with details of changes if appropriate
+3. The PR should work with the latest stable version of Adobe After Effects
+4. Include a description of what your changes do and why they should be included
+
+### Code of Conduct
+
+Please be respectful and considerate of others when contributing to this project.
 
 ## License
 
