@@ -43,4 +43,22 @@ logs/
 # After Effects temporary files
 *.aep-lock
 *.aep Auto-Save
-*auto-save* 
+*auto-save*
+
+# Build output
+/build
+
+# Temporary files
+/temp
+*.temp.*
+**/temp/
+
+# Test files
+manual_animation_test.jsx
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log* 

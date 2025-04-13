@@ -340,6 +340,119 @@ function setLayerProperties(args) {
     }
 }
 
+/**
+ * Sets a keyframe for a specific property on a layer.
+ * @param {number} compIndex - The index of the composition (1-based).
+ * @param {number} layerIndex - The index of the layer within the composition (1-based).
+ * @param {string} propertyName - The name of the property (e.g., "Position", "Scale", "Rotation", "Opacity").
+ * @param {number} timeInSeconds - The time (in seconds) for the keyframe.
+ * @param {any} value - The value for the keyframe (e.g., [x, y] for Position, [w, h] for Scale, angle for Rotation, percentage for Opacity).
+ * @returns {string} JSON string indicating success or error.
+ */
+function setLayerKeyframe(compIndex, layerIndex, propertyName, timeInSeconds, value) {
+    try {
+        // Adjust indices to be 0-based for ExtendScript arrays
+        var comp = app.project.items[compIndex];
+        if (!comp || !(comp instanceof CompItem)) {
+            return JSON.stringify({ success: false, message: "Composition not found at index " + compIndex });
+        }
+        var layer = comp.layers[layerIndex];
+        if (!layer) {
+            return JSON.stringify({ success: false, message: "Layer not found at index " + layerIndex + " in composition '" + comp.name + "'"});
+        }
+
+        var transformGroup = layer.property("Transform");
+        if (!transformGroup) {
+             return JSON.stringify({ success: false, message: "Transform properties not found for layer '" + layer.name + "' (type: " + layer.matchName + ")." });
+        }
+
+        var property = transformGroup.property(propertyName);
+        if (!property) {
+            // Check other common property groups if not in Transform
+             if (layer.property("Effects") && layer.property("Effects").property(propertyName)) {
+                 property = layer.property("Effects").property(propertyName);
+             } else if (layer.property("Text") && layer.property("Text").property(propertyName)) {
+                 property = layer.property("Text").property(propertyName);
+            } // Add more groups if needed (e.g., Masks, Shapes)
+
+            if (!property) {
+                 return JSON.stringify({ success: false, message: "Property '" + propertyName + "' not found on layer '" + layer.name + "'." });
+            }
+        }
+
+
+        // Ensure the property can be keyframed
+        if (!property.canVaryOverTime) {
+             return JSON.stringify({ success: false, message: "Property '" + propertyName + "' cannot be keyframed." });
+        }
+
+        // Make sure the property is enabled for keyframing
+        if (property.numKeys === 0 && !property.isTimeVarying) {
+             property.setValueAtTime(comp.time, property.value); // Set initial keyframe if none exist
+        }
+
+
+        property.setValueAtTime(timeInSeconds, value);
+
+        return JSON.stringify({ success: true, message: "Keyframe set for '" + propertyName + "' on layer '" + layer.name + "' at " + timeInSeconds + "s." });
+    } catch (e) {
+        return JSON.stringify({ success: false, message: "Error setting keyframe: " + e.toString() + " (Line: " + e.line + ")" });
+    }
+}
+
+
+/**
+ * Sets an expression for a specific property on a layer.
+ * @param {number} compIndex - The index of the composition (1-based).
+ * @param {number} layerIndex - The index of the layer within the composition (1-based).
+ * @param {string} propertyName - The name of the property (e.g., "Position", "Scale", "Rotation", "Opacity").
+ * @param {string} expressionString - The JavaScript expression string. Use "" to remove expression.
+ * @returns {string} JSON string indicating success or error.
+ */
+function setLayerExpression(compIndex, layerIndex, propertyName, expressionString) {
+    try {
+         // Adjust indices to be 0-based for ExtendScript arrays
+        var comp = app.project.items[compIndex];
+         if (!comp || !(comp instanceof CompItem)) {
+            return JSON.stringify({ success: false, message: "Composition not found at index " + compIndex });
+        }
+        var layer = comp.layers[layerIndex];
+         if (!layer) {
+            return JSON.stringify({ success: false, message: "Layer not found at index " + layerIndex + " in composition '" + comp.name + "'"});
+        }
+
+        var transformGroup = layer.property("Transform");
+         if (!transformGroup) {
+             // Allow expressions on non-transformable layers if property exists elsewhere
+             // return JSON.stringify({ success: false, message: "Transform properties not found for layer '" + layer.name + "' (type: " + layer.matchName + ")." });
+        }
+
+        var property = transformGroup ? transformGroup.property(propertyName) : null;
+         if (!property) {
+            // Check other common property groups if not in Transform
+             if (layer.property("Effects") && layer.property("Effects").property(propertyName)) {
+                 property = layer.property("Effects").property(propertyName);
+             } else if (layer.property("Text") && layer.property("Text").property(propertyName)) {
+                 property = layer.property("Text").property(propertyName);
+             } // Add more groups if needed
+
+            if (!property) {
+                 return JSON.stringify({ success: false, message: "Property '" + propertyName + "' not found on layer '" + layer.name + "'." });
+            }
+        }
+
+        if (!property.canSetExpression) {
+            return JSON.stringify({ success: false, message: "Property '" + propertyName + "' does not support expressions." });
+        }
+
+        property.expression = expressionString;
+
+        var action = expressionString === "" ? "removed" : "set";
+        return JSON.stringify({ success: true, message: "Expression " + action + " for '" + propertyName + "' on layer '" + layer.name + "'." });
+    } catch (e) {
+        return JSON.stringify({ success: false, message: "Error setting expression: " + e.toString() + " (Line: " + e.line + ")" });
+    }
+}
 
 // --- End of Function Definitions ---
 
@@ -542,6 +655,16 @@ function executeCommand(command, args) {
                 result = setLayerProperties(args);
                 logToPanel("Returned from setLayerProperties.");
                 break;
+            case "setLayerKeyframe":
+                logToPanel("Calling setLayerKeyframe function...");
+                result = setLayerKeyframe(args.compIndex, args.layerIndex, args.propertyName, args.timeInSeconds, args.value);
+                logToPanel("Returned from setLayerKeyframe.");
+                break;
+            case "setLayerExpression":
+                logToPanel("Calling setLayerExpression function...");
+                result = setLayerExpression(args.compIndex, args.layerIndex, args.propertyName, args.expressionString);
+                logToPanel("Returned from setLayerExpression.");
+                break;
             default:
                 result = JSON.stringify({ error: "Unknown command: " + command });
         }
@@ -550,6 +673,21 @@ function executeCommand(command, args) {
         // Save the result (ensure result is always a string)
         logToPanel("Preparing to write result file...");
         var resultString = (typeof result === 'string') ? result : JSON.stringify(result);
+        
+        // Try to parse the result as JSON to add a timestamp
+        try {
+            var resultObj = JSON.parse(resultString);
+            // Add a timestamp to help identify if we're getting fresh results
+            resultObj._responseTimestamp = new Date().toISOString();
+            resultObj._commandExecuted = command;
+            resultString = JSON.stringify(resultObj, null, 2);
+            logToPanel("Added timestamp to result JSON for tracking freshness.");
+        } catch (parseError) {
+            // If it's not valid JSON, append the timestamp as a comment
+            logToPanel("Could not parse result as JSON to add timestamp: " + parseError.toString());
+            // We'll still continue with the original string
+        }
+        
         var resultFile = new File(getResultFilePath());
         resultFile.encoding = "UTF-8"; // Ensure UTF-8 encoding
         logToPanel("Opening result file for writing...");

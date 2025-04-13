@@ -83,10 +83,33 @@ alert("Script execution completed");
 function readResultsFromTempFile(): string {
   try {
     const tempFilePath = path.join(process.env.TEMP || process.env.TMP || '', 'ae_mcp_result.json');
+    
+    // Add debugging info
+    console.error(`Checking for results at: ${tempFilePath}`);
+    
     if (fs.existsSync(tempFilePath)) {
+      // Get file stats to check modification time
+      const stats = fs.statSync(tempFilePath);
+      console.error(`Result file exists, last modified: ${stats.mtime.toISOString()}`);
+      
       const content = fs.readFileSync(tempFilePath, 'utf8');
+      console.error(`Result file content length: ${content.length} bytes`);
+      
+      // If the result file is older than 30 seconds, warn the user
+      const thirtySecondsAgo = new Date(Date.now() - 30 * 1000);
+      if (stats.mtime < thirtySecondsAgo) {
+        console.error(`WARNING: Result file is older than 30 seconds. After Effects may not be updating results.`);
+        return JSON.stringify({ 
+          warning: "Result file appears to be stale (not recently updated).",
+          message: "This could indicate After Effects is not properly writing results or the MCP Bridge Auto panel isn't running.",
+          lastModified: stats.mtime.toISOString(),
+          originalContent: content
+        });
+      }
+      
       return content;
     } else {
+      console.error(`Result file not found at: ${tempFilePath}`);
       return JSON.stringify({ error: "No results file found. Please run a script in After Effects first." });
     }
   } catch (error) {
@@ -149,7 +172,10 @@ server.tool(
       "createTextLayer",
       "createShapeLayer",
       "createSolidLayer",
-      "setLayerProperties"
+      "setLayerProperties",
+      "setLayerKeyframe",
+      "setLayerExpression",
+      "test-animation"
     ];
     
     if (!allowedScripts.includes(script)) {
@@ -313,6 +339,13 @@ Available scripts:
 - getProjectInfo: Information about the current project
 - listCompositions: List all compositions in the project
 - getLayerInfo: Information about layers in the active composition
+- createComposition: Create a new composition
+- createTextLayer: Create a new text layer
+- createShapeLayer: Create a new shape layer
+- createSolidLayer: Create a new solid layer
+- setLayerProperties: Set properties for a layer
+- setLayerKeyframe: Set a keyframe for a layer property
+- setLayerExpression: Set an expression for a layer property
 
 Note: The auto-running panel can be left open in After Effects to continuously listen for commands from external applications.`
         }
@@ -366,6 +399,209 @@ server.tool(
     }
   }
 );
+
+// --- BEGIN NEW TOOLS --- 
+
+// Zod schema for common layer identification
+const LayerIdentifierSchema = {
+  compIndex: z.number().int().positive().describe("1-based index of the target composition in the project panel."),
+  layerIndex: z.number().int().positive().describe("1-based index of the target layer within the composition.")
+};
+
+// Zod schema for keyframe value (more specific types might be needed depending on property)
+// Using z.any() for flexibility, but can be refined (e.g., z.array(z.number()) for position/scale)
+const KeyframeValueSchema = z.any().describe("The value for the keyframe (e.g., [x,y] for Position, [w,h] for Scale, angle for Rotation, percentage for Opacity)");
+
+// Tool for setting a layer keyframe
+server.tool(
+  "setLayerKeyframe", // Corresponds to the function name in ExtendScript
+  "Set a keyframe for a specific layer property at a given time.",
+  {
+    ...LayerIdentifierSchema, // Reuse common identifiers
+    propertyName: z.string().describe("Name of the property to keyframe (e.g., 'Position', 'Scale', 'Rotation', 'Opacity')."),
+    timeInSeconds: z.number().describe("The time (in seconds) for the keyframe."),
+    value: KeyframeValueSchema
+  },
+  async (parameters) => {
+    try {
+      // Queue the command for After Effects
+      writeCommandFile("setLayerKeyframe", parameters);
+      
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Command to set keyframe for "${parameters.propertyName}" on layer ${parameters.layerIndex} in comp ${parameters.compIndex} has been queued.\n` +
+                  `Use the "get-results" tool after a few seconds to check for confirmation.`
+          }
+        ]
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error queuing setLayerKeyframe command: ${String(error)}`
+          }
+        ],
+        isError: true
+      };
+    }
+  }
+);
+
+// Tool for setting a layer expression
+server.tool(
+  "setLayerExpression", // Corresponds to the function name in ExtendScript
+  "Set or remove an expression for a specific layer property.",
+  {
+    ...LayerIdentifierSchema, // Reuse common identifiers
+    propertyName: z.string().describe("Name of the property to apply the expression to (e.g., 'Position', 'Scale', 'Rotation', 'Opacity')."),
+    expressionString: z.string().describe("The JavaScript expression string. Provide an empty string (\"\") to remove the expression.")
+  },
+  async (parameters) => {
+    try {
+      // Queue the command for After Effects
+      writeCommandFile("setLayerExpression", parameters);
+      
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Command to set expression for "${parameters.propertyName}" on layer ${parameters.layerIndex} in comp ${parameters.compIndex} has been queued.\n` +
+                  `Use the "get-results" tool after a few seconds to check for confirmation.`
+          }
+        ]
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error queuing setLayerExpression command: ${String(error)}`
+          }
+        ],
+        isError: true
+      };
+    }
+  }
+);
+
+// --- END NEW TOOLS --- 
+
+// --- BEGIN NEW TESTING TOOL --- 
+// Add a special tool for directly testing the keyframe functionality
+server.tool(
+  "test-animation",
+  "Test animation functionality in After Effects",
+  {
+    operation: z.enum(["keyframe", "expression"]).describe("The animation operation to test"),
+    compIndex: z.number().int().positive().describe("Composition index (usually 1)"),
+    layerIndex: z.number().int().positive().describe("Layer index (usually 1)")
+  },
+  async (params) => {
+    try {
+      // Generate a unique timestamp
+      const timestamp = new Date().getTime();
+      const tempFile = path.join(process.env.TEMP || process.env.TMP || '', `ae_test_${timestamp}.jsx`);
+      
+      // Create a direct test script that doesn't rely on command files
+      let scriptContent = "";
+      if (params.operation === "keyframe") {
+        scriptContent = `
+          // Direct keyframe test script
+          try {
+            var comp = app.project.items[${params.compIndex}];
+            var layer = comp.layers[${params.layerIndex}];
+            var prop = layer.property("Transform").property("Opacity");
+            var time = 1; // 1 second
+            var value = 25; // 25% opacity
+            
+            // Set a keyframe
+            prop.setValueAtTime(time, value);
+            
+            // Write direct result
+            var resultFile = new File("${path.join(process.env.TEMP || process.env.TMP || '', 'ae_test_result.txt').replace(/\\/g, '\\\\')}");
+            resultFile.open("w");
+            resultFile.write("SUCCESS: Added keyframe at time " + time + " with value " + value);
+            resultFile.close();
+            
+            // Visual feedback
+            alert("Test successful: Added opacity keyframe at " + time + "s with value " + value + "%");
+          } catch (e) {
+            var errorFile = new File("${path.join(process.env.TEMP || process.env.TMP || '', 'ae_test_error.txt').replace(/\\/g, '\\\\')}");
+            errorFile.open("w");
+            errorFile.write("ERROR: " + e.toString());
+            errorFile.close();
+            
+            alert("Test failed: " + e.toString());
+          }
+        `;
+      } else if (params.operation === "expression") {
+        scriptContent = `
+          // Direct expression test script
+          try {
+            var comp = app.project.items[${params.compIndex}];
+            var layer = comp.layers[${params.layerIndex}];
+            var prop = layer.property("Transform").property("Position");
+            var expression = "wiggle(3, 30)";
+            
+            // Set the expression
+            prop.expression = expression;
+            
+            // Write direct result
+            var resultFile = new File("${path.join(process.env.TEMP || process.env.TMP || '', 'ae_test_result.txt').replace(/\\/g, '\\\\')}");
+            resultFile.open("w");
+            resultFile.write("SUCCESS: Added expression: " + expression);
+            resultFile.close();
+            
+            // Visual feedback
+            alert("Test successful: Added position expression: " + expression);
+          } catch (e) {
+            var errorFile = new File("${path.join(process.env.TEMP || process.env.TMP || '', 'ae_test_error.txt').replace(/\\/g, '\\\\')}");
+            errorFile.open("w");
+            errorFile.write("ERROR: " + e.toString());
+            errorFile.close();
+            
+            alert("Test failed: " + e.toString());
+          }
+        `;
+      }
+      
+      // Write the script to a temp file
+      fs.writeFileSync(tempFile, scriptContent);
+      console.error(`Written test script to: ${tempFile}`);
+      
+      // Tell the user what to do
+      return {
+        content: [
+          {
+            type: "text",
+            text: `I've created a direct test script for the ${params.operation} operation.
+
+Please run this script manually in After Effects:
+1. In After Effects, go to File > Scripts > Run Script File...
+2. Navigate to: ${tempFile}
+3. You should see an alert confirming the result.
+
+This bypasses the MCP Bridge Auto panel and will directly modify the specified layer.`
+          }
+        ]
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error creating test script: ${String(error)}`
+          }
+        ],
+        isError: true
+      };
+    }
+  }
+);
+// --- END NEW TESTING TOOL --- 
 
 // Start the MCP server
 async function main() {
