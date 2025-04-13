@@ -68,9 +68,10 @@ npm run install-bridge
 
 If Claude is unable to communicate with After Effects:
 1. Ensure the MCP Bridge panel is open in After Effects
-
-image.png
-
+   
+   ![MCP Bridge Auto panel in After Effects](./assets/MCP%20Auto%20Bridge.png)
+   *The MCP Bridge Auto panel should be open and running in After Effects*
+   
 2. Check that scripting permissions are enabled in After Effects:
    - Edit > Preferences > Scripting & Expressions
    - Enable "Allow Scripts to Write Files and Access Network"
