@@ -141,7 +141,7 @@ server.tool(
   },
   async ({ script, parameters = {} }) => {
     // Validate that script is safe (only allow predefined scripts)
-    const allowedScripts = ["listCompositions", "getProjectInfo", "getLayerInfo"];
+    const allowedScripts = ["listCompositions", "getProjectInfo", "getLayerInfo", "createComposition"];
     
     if (!allowedScripts.includes(script)) {
       return {
@@ -248,6 +248,23 @@ server.prompt(
   }
 );
 
+// Add a prompt for creating compositions
+server.prompt(
+  "create-composition",
+  "Create a new composition with specified settings",
+  () => {
+    return {
+      messages: [{
+        role: "user",
+        content: {
+          type: "text",
+          text: `Please create a new composition with custom settings. You can specify parameters like name, width, height, frame rate, etc.`
+        }
+      }]
+    };
+  }
+);
+
 // Add a tool to provide help and instructions
 server.tool(
   "get-help",
@@ -292,6 +309,52 @@ Note: The auto-running panel can be left open in After Effects to continuously l
         }
       ]
     };
+  }
+);
+
+// Add a tool specifically for creating compositions
+server.tool(
+  "create-composition",
+  "Create a new composition in After Effects with specified parameters",
+  {
+    name: z.string().describe("Name of the composition"),
+    width: z.number().int().positive().describe("Width of the composition in pixels"),
+    height: z.number().int().positive().describe("Height of the composition in pixels"),
+    pixelAspect: z.number().positive().optional().describe("Pixel aspect ratio (default: 1.0)"),
+    duration: z.number().positive().optional().describe("Duration in seconds (default: 10.0)"),
+    frameRate: z.number().positive().optional().describe("Frame rate in frames per second (default: 30.0)"),
+    backgroundColor: z.object({
+      r: z.number().int().min(0).max(255),
+      g: z.number().int().min(0).max(255),
+      b: z.number().int().min(0).max(255)
+    }).optional().describe("Background color of the composition (RGB values 0-255)")
+  },
+  async (params) => {
+    try {
+      // Write command to file for After Effects to pick up
+      writeCommandFile("createComposition", params);
+      
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Command to create composition "${params.name}" has been queued.\n` +
+                  `Please ensure the "MCP Bridge Auto" panel is open in After Effects.\n` +
+                  `Use the "get-results" tool after a few seconds to check for results.`
+          }
+        ]
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error queuing composition creation: ${String(error)}`
+          }
+        ],
+        isError: true
+      };
+    }
   }
 );
 

@@ -56,6 +56,7 @@ npm run install-bridge
 - `getProjectInfo` - Returns project metadata
 - `listCompositions` - Lists all compositions and their properties
 - `getLayerInfo` - Returns detailed information about layers in the active composition
+- `createComposition` - Creates a new composition with specified parameters
 
 ## Resources
 - `aftereffects://compositions` - Lists all compositions in the current project
@@ -63,6 +64,7 @@ npm run install-bridge
 ## Tools
 - `run-script` - Executes predefined After Effects scripts
 - `get-results` - Retrieves results from the last script execution
+- `create-composition` - Creates a new composition with custom parameters including name, dimensions, frame rate, duration, and background color
 
 ## Troubleshooting
 
@@ -127,6 +129,29 @@ Contributions to improve the After Effects MCP Server are welcome! Here's how yo
 1. Create new ExtendScript files in the `src/scripts` directory
 2. Update the `allowedScripts` array in `src/index.ts` to include your new scripts
 3. Build the project to copy the scripts to the build folder
+
+### Example: Creating Compositions
+
+You can create compositions with custom settings using the `create-composition` tool:
+
+```javascript
+// Example parameters
+{
+  "name": "My Composition",
+  "width": 1920,
+  "height": 1080,
+  "frameRate": 30,
+  "duration": 10,
+  "pixelAspect": 1.0,
+  "backgroundColor": {
+    "r": 30,
+    "g": 30,
+    "b": 30
+  }
+}
+```
+
+This creates a 1920x1080 composition at 30fps with a dark gray background.
 
 ### Pull Request Process
 

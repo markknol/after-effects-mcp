@@ -6,21 +6,28 @@ yarn-debug.log
 
 # Build directories
 build/
+dist/
 
 # IDEs and editors
 .vscode/
 .idea/
 .cursor/
 *.sublime-*
+*.swp
+*.swo
 
 # Operating System Files
 .DS_Store
 Thumbs.db
+ehthumbs.db
+Desktop.ini
 
 # Temporary files
 *.tmp
 *.temp
 temp/
+*~
+*.bak
 
 # Logs
 logs/
@@ -31,4 +38,9 @@ logs/
 .env.local
 .env.development.local
 .env.test.local
-.env.production.local 
+.env.production.local
+
+# After Effects temporary files
+*.aep-lock
+*.aep Auto-Save
+*auto-save* 
