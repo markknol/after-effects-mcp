@@ -1,6 +1,349 @@
 // mcp-bridge-auto.jsx
 // Auto-running MCP Bridge panel for After Effects
 
+// Remove #include directives as we define functions below
+/*
+#include "createComposition.jsx"
+#include "createTextLayer.jsx"
+#include "createShapeLayer.jsx"
+#include "createSolidLayer.jsx"
+#include "setLayerProperties.jsx"
+*/
+
+// --- Function Definitions ---
+
+// --- createComposition (from createComposition.jsx) --- 
+function createComposition(args) {
+    try {
+        var name = args.name || "New Composition";
+        var width = parseInt(args.width) || 1920;
+        var height = parseInt(args.height) || 1080;
+        var pixelAspect = parseFloat(args.pixelAspect) || 1.0;
+        var duration = parseFloat(args.duration) || 10.0;
+        var frameRate = parseFloat(args.frameRate) || 30.0;
+        var bgColor = args.backgroundColor ? [args.backgroundColor.r/255, args.backgroundColor.g/255, args.backgroundColor.b/255] : [0, 0, 0];
+        var newComp = app.project.items.addComp(name, width, height, pixelAspect, duration, frameRate);
+        if (args.backgroundColor) {
+            newComp.bgColor = bgColor;
+        }
+        return JSON.stringify({
+            status: "success", message: "Composition created successfully",
+            composition: { name: newComp.name, id: newComp.id, width: newComp.width, height: newComp.height, pixelAspect: newComp.pixelAspect, duration: newComp.duration, frameRate: newComp.frameRate, bgColor: newComp.bgColor }
+        }, null, 2);
+    } catch (error) {
+        return JSON.stringify({ status: "error", message: error.toString() }, null, 2);
+    }
+}
+
+// --- createTextLayer (from createTextLayer.jsx) ---
+function createTextLayer(args) {
+    try {
+        var compName = args.compName || "";
+        var text = args.text || "Text Layer";
+        var position = args.position || [960, 540]; 
+        var fontSize = args.fontSize || 72;
+        var color = args.color || [1, 1, 1]; 
+        var startTime = args.startTime || 0;
+        var duration = args.duration || 5; 
+        var fontFamily = args.fontFamily || "Arial";
+        var alignment = args.alignment || "center"; 
+        var comp = null;
+        for (var i = 1; i <= app.project.numItems; i++) {
+            var item = app.project.item(i);
+            if (item instanceof CompItem && item.name === compName) { comp = item; break; }
+        }
+        if (!comp) {
+            if (app.project.activeItem instanceof CompItem) { comp = app.project.activeItem; } 
+            else { throw new Error("No composition found with name '" + compName + "' and no active composition"); }
+        }
+        var textLayer = comp.layers.addText(text);
+        var textProp = textLayer.property("ADBE Text Properties").property("ADBE Text Document");
+        var textDocument = textProp.value;
+        textDocument.fontSize = fontSize;
+        textDocument.fillColor = color;
+        textDocument.font = fontFamily;
+        if (alignment === "left") { textDocument.justification = ParagraphJustification.LEFT_JUSTIFY; } 
+        else if (alignment === "center") { textDocument.justification = ParagraphJustification.CENTER_JUSTIFY; } 
+        else if (alignment === "right") { textDocument.justification = ParagraphJustification.RIGHT_JUSTIFY; }
+        textProp.setValue(textDocument);
+        textLayer.property("Position").setValue(position);
+        textLayer.startTime = startTime;
+        if (duration > 0) { textLayer.outPoint = startTime + duration; }
+        return JSON.stringify({
+            status: "success", message: "Text layer created successfully",
+            layer: { name: textLayer.name, index: textLayer.index, type: "text", inPoint: textLayer.inPoint, outPoint: textLayer.outPoint, position: textLayer.property("Position").value }
+        }, null, 2);
+    } catch (error) {
+        return JSON.stringify({ status: "error", message: error.toString() }, null, 2);
+    }
+}
+
+// --- createShapeLayer (from createShapeLayer.jsx) --- 
+function createShapeLayer(args) {
+    try {
+        var compName = args.compName || "";
+        var shapeType = args.shapeType || "rectangle"; 
+        var position = args.position || [960, 540]; 
+        var size = args.size || [200, 200]; 
+        var fillColor = args.fillColor || [1, 0, 0]; 
+        var strokeColor = args.strokeColor || [0, 0, 0]; 
+        var strokeWidth = args.strokeWidth || 0; 
+        var startTime = args.startTime || 0;
+        var duration = args.duration || 5; 
+        var name = args.name || "Shape Layer";
+        var points = args.points || 5; 
+        var comp = null;
+        for (var i = 1; i <= app.project.numItems; i++) {
+            var item = app.project.item(i);
+            if (item instanceof CompItem && item.name === compName) { comp = item; break; }
+        }
+        if (!comp) {
+            if (app.project.activeItem instanceof CompItem) { comp = app.project.activeItem; } 
+            else { throw new Error("No composition found with name '" + compName + "' and no active composition"); }
+        }
+        var shapeLayer = comp.layers.addShape();
+        shapeLayer.name = name;
+        var contents = shapeLayer.property("Contents"); 
+        var shapeGroup = contents.addProperty("ADBE Vector Group");
+        var groupContents = shapeGroup.property("Contents"); 
+        var shapePathProperty;
+        if (shapeType === "rectangle") {
+            shapePathProperty = groupContents.addProperty("ADBE Vector Shape - Rect");
+            shapePathProperty.property("Size").setValue(size);
+        } else if (shapeType === "ellipse") {
+            shapePathProperty = groupContents.addProperty("ADBE Vector Shape - Ellipse");
+            shapePathProperty.property("Size").setValue(size);
+        } else if (shapeType === "polygon" || shapeType === "star") { 
+            shapePathProperty = groupContents.addProperty("ADBE Vector Shape - Star");
+            shapePathProperty.property("Type").setValue(shapeType === "polygon" ? 1 : 2); 
+            shapePathProperty.property("Points").setValue(points);
+            shapePathProperty.property("Outer Radius").setValue(size[0] / 2);
+            if (shapeType === "star") { shapePathProperty.property("Inner Radius").setValue(size[0] / 3); }
+        }
+        var fill = groupContents.addProperty("ADBE Vector Graphic - Fill");
+        fill.property("Color").setValue(fillColor);
+        fill.property("Opacity").setValue(100);
+        if (strokeWidth > 0) {
+            var stroke = groupContents.addProperty("ADBE Vector Graphic - Stroke");
+            stroke.property("Color").setValue(strokeColor);
+            stroke.property("Stroke Width").setValue(strokeWidth);
+            stroke.property("Opacity").setValue(100);
+        }
+        shapeLayer.property("Position").setValue(position);
+        shapeLayer.startTime = startTime;
+        if (duration > 0) { shapeLayer.outPoint = startTime + duration; }
+        return JSON.stringify({
+            status: "success", message: "Shape layer created successfully",
+            layer: { name: shapeLayer.name, index: shapeLayer.index, type: "shape", shapeType: shapeType, inPoint: shapeLayer.inPoint, outPoint: shapeLayer.outPoint, position: shapeLayer.property("Position").value }
+        }, null, 2);
+    } catch (error) {
+        return JSON.stringify({ status: "error", message: error.toString() }, null, 2);
+    }
+}
+
+// --- createSolidLayer (from createSolidLayer.jsx) --- 
+function createSolidLayer(args) {
+    try {
+        var compName = args.compName || "";
+        var color = args.color || [1, 1, 1]; 
+        var name = args.name || "Solid Layer";
+        var position = args.position || [960, 540]; 
+        var size = args.size; 
+        var startTime = args.startTime || 0;
+        var duration = args.duration || 5; 
+        var isAdjustment = args.isAdjustment || false; 
+        var comp = null;
+        for (var i = 1; i <= app.project.numItems; i++) {
+            var item = app.project.item(i);
+            if (item instanceof CompItem && item.name === compName) { comp = item; break; }
+        }
+        if (!comp) {
+            if (app.project.activeItem instanceof CompItem) { comp = app.project.activeItem; } 
+            else { throw new Error("No composition found with name '" + compName + "' and no active composition"); }
+        }
+        if (!size) { size = [comp.width, comp.height]; }
+        var solidLayer;
+        if (isAdjustment) {
+            solidLayer = comp.layers.addSolid([0, 0, 0], name, size[0], size[1], 1);
+            solidLayer.adjustmentLayer = true;
+        } else {
+            solidLayer = comp.layers.addSolid(color, name, size[0], size[1], 1);
+        }
+        solidLayer.property("Position").setValue(position);
+        solidLayer.startTime = startTime;
+        if (duration > 0) { solidLayer.outPoint = startTime + duration; }
+        return JSON.stringify({
+            status: "success", message: isAdjustment ? "Adjustment layer created successfully" : "Solid layer created successfully",
+            layer: { name: solidLayer.name, index: solidLayer.index, type: isAdjustment ? "adjustment" : "solid", inPoint: solidLayer.inPoint, outPoint: solidLayer.outPoint, position: solidLayer.property("Position").value, isAdjustment: solidLayer.adjustmentLayer }
+        }, null, 2);
+    } catch (error) {
+        return JSON.stringify({ status: "error", message: error.toString() }, null, 2);
+    }
+}
+
+// --- setLayerProperties (modified to handle text properties) ---
+function setLayerProperties(args) {
+    try {
+        var compName = args.compName || "";
+        var layerName = args.layerName || "";
+        var layerIndex = args.layerIndex; 
+        
+        // General Properties
+        var position = args.position; 
+        var scale = args.scale; 
+        var rotation = args.rotation; 
+        var opacity = args.opacity; 
+        var startTime = args.startTime; 
+        var duration = args.duration; 
+
+        // Text Specific Properties
+        var textContent = args.text; // New: text content
+        var fontFamily = args.fontFamily; // New: font family
+        var fontSize = args.fontSize; // New: font size
+        var fillColor = args.fillColor; // New: font color
+        
+        // Find the composition (same logic as before)
+        var comp = null;
+        for (var i = 1; i <= app.project.numItems; i++) {
+            var item = app.project.item(i);
+            if (item instanceof CompItem && item.name === compName) { comp = item; break; }
+        }
+        if (!comp) {
+            if (app.project.activeItem instanceof CompItem) { comp = app.project.activeItem; } 
+            else { throw new Error("No composition found with name '" + compName + "' and no active composition"); }
+        }
+        
+        // Find the layer (same logic as before)
+        var layer = null;
+        if (layerIndex !== undefined && layerIndex !== null) {
+            if (layerIndex > 0 && layerIndex <= comp.numLayers) { layer = comp.layer(layerIndex); } 
+            else { throw new Error("Layer index out of bounds: " + layerIndex); }
+        } else if (layerName) {
+            for (var j = 1; j <= comp.numLayers; j++) {
+                if (comp.layer(j).name === layerName) { layer = comp.layer(j); break; }
+            }
+        }
+        if (!layer) { throw new Error("Layer not found: " + (layerName || "index " + layerIndex)); }
+        
+        var changedProperties = [];
+        var textDocumentChanged = false;
+        var textProp = null;
+        var textDocument = null;
+
+        // --- Text Property Handling ---
+        if (layer instanceof TextLayer && (textContent !== undefined || fontFamily !== undefined || fontSize !== undefined || fillColor !== undefined)) {
+            var sourceTextProp = layer.property("Source Text");
+            if (sourceTextProp && sourceTextProp.value) {
+                var currentTextDocument = sourceTextProp.value; // Get the current value
+                var updated = false;
+
+                if (textContent !== undefined && textContent !== null && currentTextDocument.text !== textContent) {
+                    currentTextDocument.text = textContent;
+                    changedProperties.push("text");
+                    updated = true;
+                }
+                if (fontFamily !== undefined && fontFamily !== null && currentTextDocument.font !== fontFamily) {
+                    // Add basic validation/logging for font existence if needed
+                    // try { app.fonts.findFont(fontFamily); } catch (e) { logToPanel("Warning: Font '"+fontFamily+"' might not be installed."); }
+                    currentTextDocument.font = fontFamily;
+                    changedProperties.push("fontFamily");
+                    updated = true;
+                }
+                if (fontSize !== undefined && fontSize !== null && currentTextDocument.fontSize !== fontSize) {
+                    currentTextDocument.fontSize = fontSize;
+                    changedProperties.push("fontSize");
+                    updated = true;
+                }
+                // Comparing colors needs care due to potential floating point inaccuracies if set via UI
+                // Simple comparison for now
+                if (fillColor !== undefined && fillColor !== null && 
+                    (currentTextDocument.fillColor[0] !== fillColor[0] || 
+                     currentTextDocument.fillColor[1] !== fillColor[1] || 
+                     currentTextDocument.fillColor[2] !== fillColor[2])) {
+                    currentTextDocument.fillColor = fillColor;
+                    changedProperties.push("fillColor");
+                    updated = true;
+                }
+
+                // Only set the value if something actually changed
+                if (updated) {
+                    try {
+                        sourceTextProp.setValue(currentTextDocument);
+                        logToPanel("Applied changes to Text Document for layer: " + layer.name);
+                    } catch (e) {
+                        logToPanel("ERROR applying Text Document changes: " + e.toString());
+                        // Decide if we should throw or just log the error for text properties
+                        // For now, just log, other properties might still succeed
+                    }
+                }
+                 // Store the potentially updated document for the return value
+                 textDocument = currentTextDocument; 
+
+            } else {
+                logToPanel("Warning: Could not access Source Text property for layer: " + layer.name);
+            }
+        }
+
+        // --- General Property Handling ---
+        if (position !== undefined && position !== null) { layer.property("Position").setValue(position); changedProperties.push("position"); }
+        if (scale !== undefined && scale !== null) { layer.property("Scale").setValue(scale); changedProperties.push("scale"); }
+        if (rotation !== undefined && rotation !== null) {
+            if (layer.threeDLayer) { 
+                // For 3D layers, Z rotation is often what's intended by a single value
+                layer.property("Z Rotation").setValue(rotation);
+            } else { 
+                layer.property("Rotation").setValue(rotation); 
+            }
+            changedProperties.push("rotation");
+        }
+        if (opacity !== undefined && opacity !== null) { layer.property("Opacity").setValue(opacity); changedProperties.push("opacity"); }
+        if (startTime !== undefined && startTime !== null) { layer.startTime = startTime; changedProperties.push("startTime"); }
+        if (duration !== undefined && duration !== null && duration > 0) {
+            var actualStartTime = (startTime !== undefined && startTime !== null) ? startTime : layer.startTime;
+            layer.outPoint = actualStartTime + duration;
+            changedProperties.push("duration");
+        }
+
+        // Return success with updated layer details (including text if changed)
+        var returnLayerInfo = {
+            name: layer.name,
+            index: layer.index,
+            position: layer.property("Position").value,
+            scale: layer.property("Scale").value,
+            rotation: layer.threeDLayer ? layer.property("Z Rotation").value : layer.property("Rotation").value, // Return appropriate rotation
+            opacity: layer.property("Opacity").value,
+            inPoint: layer.inPoint,
+            outPoint: layer.outPoint,
+            changedProperties: changedProperties
+        };
+        // Add text properties to the return object if it was a text layer
+        if (layer instanceof TextLayer && textDocument) {
+            returnLayerInfo.text = textDocument.text;
+            returnLayerInfo.fontFamily = textDocument.font;
+            returnLayerInfo.fontSize = textDocument.fontSize;
+            returnLayerInfo.fillColor = textDocument.fillColor;
+        }
+
+        // *** ADDED LOGGING HERE ***
+        logToPanel("Final check before return:");
+        logToPanel("  Changed Properties: " + changedProperties.join(", "));
+        logToPanel("  Return Layer Info Font: " + (returnLayerInfo.fontFamily || "N/A")); 
+        logToPanel("  TextDocument Font: " + (textDocument ? textDocument.font : "N/A"));
+
+        return JSON.stringify({
+            status: "success", message: "Layer properties updated successfully",
+            layer: returnLayerInfo
+        }, null, 2);
+    } catch (error) {
+        // Error handling remains similar, but add more specific checks if needed
+        return JSON.stringify({ status: "error", message: error.toString() }, null, 2);
+    }
+}
+
+
+// --- End of Function Definitions ---
+
+
 // Create panel interface
 var panel = (this instanceof Panel) ? this : new Window("palette", "MCP Bridge Auto", undefined);
 panel.orientation = "column";
@@ -162,43 +505,113 @@ function executeCommand(command, args) {
     panel.update();
     
     try {
-        if (command === "getProjectInfo") {
-            result = getProjectInfo();
-        } else if (command === "listCompositions") {
-            result = listCompositions();
-        } else if (command === "getLayerInfo") {
-            result = getLayerInfo();
-        } else if (command === "createComposition") {
-            result = createComposition(args);
-        } else {
-            result = JSON.stringify({ error: "Unknown command: " + command });
+        logToPanel("Attempting to execute: " + command); // Log before switch
+        // Use a switch statement for clarity
+        switch (command) {
+            case "getProjectInfo":
+                result = getProjectInfo();
+                break;
+            case "listCompositions":
+                result = listCompositions();
+                break;
+            case "getLayerInfo":
+                result = getLayerInfo();
+                break;
+            case "createComposition":
+                logToPanel("Calling createComposition function...");
+                result = createComposition(args);
+                logToPanel("Returned from createComposition.");
+                break;
+            case "createTextLayer":
+                logToPanel("Calling createTextLayer function...");
+                result = createTextLayer(args);
+                logToPanel("Returned from createTextLayer.");
+                break;
+            case "createShapeLayer":
+                logToPanel("Calling createShapeLayer function...");
+                result = createShapeLayer(args);
+                logToPanel("Returned from createShapeLayer. Result type: " + typeof result);
+                break;
+            case "createSolidLayer":
+                logToPanel("Calling createSolidLayer function...");
+                result = createSolidLayer(args);
+                logToPanel("Returned from createSolidLayer.");
+                break;
+            case "setLayerProperties":
+                logToPanel("Calling setLayerProperties function...");
+                result = setLayerProperties(args);
+                logToPanel("Returned from setLayerProperties.");
+                break;
+            default:
+                result = JSON.stringify({ error: "Unknown command: " + command });
         }
+        logToPanel("Execution finished for: " + command); // Log after switch
         
-        // Save the result
+        // Save the result (ensure result is always a string)
+        logToPanel("Preparing to write result file...");
+        var resultString = (typeof result === 'string') ? result : JSON.stringify(result);
         var resultFile = new File(getResultFilePath());
-        resultFile.open("w");
-        resultFile.write(result);
-        resultFile.close();
+        resultFile.encoding = "UTF-8"; // Ensure UTF-8 encoding
+        logToPanel("Opening result file for writing...");
+        var opened = resultFile.open("w");
+        if (!opened) {
+            logToPanel("ERROR: Failed to open result file for writing: " + resultFile.fsName);
+            throw new Error("Failed to open result file for writing.");
+        }
+        logToPanel("Writing to result file...");
+        var written = resultFile.write(resultString);
+        if (!written) {
+             logToPanel("ERROR: Failed to write to result file (write returned false): " + resultFile.fsName);
+             // Still try to close, but log the error
+        }
+        logToPanel("Closing result file...");
+        var closed = resultFile.close();
+         if (!closed) {
+             logToPanel("ERROR: Failed to close result file: " + resultFile.fsName);
+             // Continue, but log the error
+        }
+        logToPanel("Result file write process complete.");
         
-        logToPanel("Command completed: " + command);
+        logToPanel("Command completed successfully: " + command); // Changed log message
         statusText.text = "Command completed: " + command;
         
         // Update command file status
+        logToPanel("Updating command status to completed...");
         updateCommandStatus("completed");
+        logToPanel("Command status updated.");
         
     } catch (error) {
-        var errorMsg = "Error executing command: " + error.toString();
-        logToPanel(errorMsg);
+        var errorMsg = "ERROR in executeCommand for '" + command + "': " + error.toString() + (error.line ? " (line: " + error.line + ")" : "");
+        logToPanel(errorMsg); // Log detailed error
         statusText.text = "Error: " + error.toString();
         
-        // Write error to result file
-        var resultFile = new File(getResultFilePath());
-        resultFile.open("w");
-        resultFile.write(JSON.stringify({ error: errorMsg }));
-        resultFile.close();
+        // Write detailed error to result file
+        try {
+            logToPanel("Attempting to write ERROR to result file...");
+            var errorResult = JSON.stringify({ 
+                status: "error", 
+                command: command,
+                message: error.toString(),
+                line: error.line,
+                fileName: error.fileName
+            });
+            var errorFile = new File(getResultFilePath());
+            errorFile.encoding = "UTF-8";
+            if (errorFile.open("w")) {
+                errorFile.write(errorResult);
+                errorFile.close();
+                logToPanel("Successfully wrote ERROR to result file.");
+            } else {
+                 logToPanel("CRITICAL ERROR: Failed to open result file to write error!");
+            }
+        } catch (writeError) {
+             logToPanel("CRITICAL ERROR: Failed to write error to result file: " + writeError.toString());
+        }
         
-        // Update command file status
+        // Update command file status even after error
+        logToPanel("Updating command status to error...");
         updateCommandStatus("error");
+        logToPanel("Command status updated to error.");
     }
 }
 
@@ -291,48 +704,4 @@ startCommandChecker();
 if (panel instanceof Window) {
     panel.center();
     panel.show();
-}
-
-// Function to create composition
-function createComposition(args) {
-    try {
-        // Extract parameters from args
-        var name = args.name || "New Composition";
-        var width = parseInt(args.width) || 1920;
-        var height = parseInt(args.height) || 1080;
-        var pixelAspect = parseFloat(args.pixelAspect) || 1.0;
-        var duration = parseFloat(args.duration) || 10.0;
-        var frameRate = parseFloat(args.frameRate) || 30.0;
-        var bgColor = args.backgroundColor ? [args.backgroundColor.r/255, args.backgroundColor.g/255, args.backgroundColor.b/255] : [0, 0, 0];
-        
-        // Create the composition
-        var newComp = app.project.items.addComp(name, width, height, pixelAspect, duration, frameRate);
-        
-        // Set background color if provided
-        if (args.backgroundColor) {
-            newComp.bgColor = bgColor;
-        }
-        
-        // Return success with composition details
-        return JSON.stringify({
-            status: "success",
-            message: "Composition created successfully",
-            composition: {
-                name: newComp.name,
-                id: newComp.id,
-                width: newComp.width,
-                height: newComp.height,
-                pixelAspect: newComp.pixelAspect,
-                duration: newComp.duration,
-                frameRate: newComp.frameRate,
-                bgColor: newComp.bgColor
-            }
-        }, null, 2);
-    } catch (error) {
-        // Return error message
-        return JSON.stringify({
-            status: "error",
-            message: error.toString()
-        }, null, 2);
-    }
 }

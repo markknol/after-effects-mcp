@@ -141,7 +141,16 @@ server.tool(
   },
   async ({ script, parameters = {} }) => {
     // Validate that script is safe (only allow predefined scripts)
-    const allowedScripts = ["listCompositions", "getProjectInfo", "getLayerInfo", "createComposition"];
+    const allowedScripts = [
+      "listCompositions", 
+      "getProjectInfo", 
+      "getLayerInfo", 
+      "createComposition",
+      "createTextLayer",
+      "createShapeLayer",
+      "createSolidLayer",
+      "setLayerProperties"
+    ];
     
     if (!allowedScripts.includes(script)) {
       return {
