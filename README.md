@@ -1,6 +1,11 @@
-# After Effects MCP Server
+# 🎬 After Effects MCP Server
 
-A Model Context Protocol (MCP) server for Adobe After Effects that enables AI assistants and other applications to control After Effects through a standardized protocol.
+![Node.js](https://img.shields.io/badge/node-%3E=14.x-brightgreen.svg)
+![Build](https://img.shields.io/badge/build-passing-success)
+![License](https://img.shields.io/github/license/yourusername/after-effects-mcp)
+![Platform](https://img.shields.io/badge/platform-after%20effects-blue)
+
+✨ A Model Context Protocol (MCP) server for Adobe After Effects that enables AI assistants and other applications to control After Effects through a standardized protocol.
 
 ## Table of Contents
 - [Features](#features)
@@ -10,6 +15,7 @@ A Model Context Protocol (MCP) server for Adobe After Effects that enables AI as
 - [Setup Instructions](#setup-instructions)
   - [Prerequisites](#prerequisites)
   - [Installation](#installation)
+  - [Update MCP Config](#Update MCP Config)
   - [Running the Server](#running-the-server)
 - [Usage Guide](#usage-guide)
   - [Creating Compositions](#creating-compositions)
@@ -22,31 +28,31 @@ A Model Context Protocol (MCP) server for Adobe After Effects that enables AI as
   - [Contributing](#contributing)
 - [License](#license)
 
-## Features
+## 📦 Features
 
-### Core Composition Features
+### 🎥 Core Composition Features
 - **Create compositions** with custom settings (size, frame rate, duration, background color)
 - **List all compositions** in a project
 - **Get project information** such as frame rate, dimensions, and duration
 
-### Layer Management
+### 🧱 Layer Management
 - **Create text layers** with customizable properties (font, size, color, position)
 - **Create shape layers** (rectangle, ellipse, polygon, star) with colors and strokes
 - **Create solid/adjustment layers** for backgrounds and effects
 - **Modify layer properties** like position, scale, rotation, opacity, and timing
 
-### Animation Capabilities
+### 🌀 Animation Capabilities
 - **Set keyframes** for layer properties (Position, Scale, Rotation, Opacity, etc.)
 - **Apply expressions** to layer properties for dynamic animations
 
-## Setup Instructions
+## ⚙️ Setup Instructions
 
-### Prerequisites
+### 🛠 Prerequisites
 - Adobe After Effects (2022 or later)
 - Node.js (v14 or later)
 - npm or yarn package manager
 
-### Installation
+### 📥 Installation
 
 1. **Clone the repository**
    ```bash
@@ -76,7 +82,22 @@ A Model Context Protocol (MCP) server for Adobe After Effects that enables AI as
    ```
    This will copy the necessary scripts to your After Effects installation.
 
-### Running the Server
+### 🔧 Update MCP Config
+
+Go to your client (eg. Claude or Cursor ) and update your config file
+
+```json
+{
+  "mcpServers": {
+    "AfterEffectsMCP": {
+      "command": "node",
+      "args": ["C:\\Users\\Dakkshin\\after-effects-mcp\\build\\index.js"]
+    }
+  }
+}
+```
+
+### ▶️ Running the Server
 
 1. **Start the MCP server**
    ```bash
@@ -92,11 +113,11 @@ A Model Context Protocol (MCP) server for Adobe After Effects that enables AI as
    - The panel will automatically check for commands every few seconds
    - Make sure the "Auto-run commands" checkbox is enabled
 
-## Usage Guide
+## 🚀 Usage Guide
 
 Once you have the server running and the MCP Bridge panel open in After Effects, you can control After Effects through the MCP protocol. This allows AI assistants or custom applications to send commands to After Effects.
 
-### Creating Compositions
+### 📘 Creating Compositions
 
 You can create new compositions with custom settings:
 - Name
@@ -116,7 +137,7 @@ mcp_aftereffects_create_composition({
 });
 ```
 
-### Working with Layers
+### ✍️ Working with Layers
 
 You can create and modify different types of layers:
 
@@ -134,7 +155,7 @@ You can create and modify different types of layers:
 - Create background colors
 - Make adjustment layers for effects
 
-### Animation
+### 🕹 Animation
 
 You can animate layers with:
 
@@ -148,24 +169,26 @@ You can animate layers with:
 - Create dynamic, procedural animations
 - Connect property values to each other
 
-## Available MCP Tools
+## 🛠 Available MCP Tools
 
-- `create-composition`: Create a new composition in After Effects
-- `run-script`: Run predefined scripts in After Effects
-- `get-results`: Get results from the last script execution
-- `get-help`: Get help on using the After Effects MCP integration
-- `setLayerKeyframe`: Set a keyframe for a layer property at a given time
-- `setLayerExpression`: Set or remove an expression for a layer property
+| Command              | Description                            |
+|----------------------|----------------------------------------|
+| \`create-composition\` | Create a new comp                      |
+| \`run-script\`         | Run a JS script inside AE              |
+| \`get-results\`        | Get script results                     |
+| \`get-help\`           | Help for available commands            |
+| \`setLayerKeyframe\`   | Add keyframe to layer property         |
+| \`setLayerExpression\` | Add/remove expressions from properties |
 
-## For Developers
+## 👨‍💻 For Developers
 
-### Project Structure
+### 🧩 Project Structure
 
 - `src/index.ts`: MCP server implementation
 - `src/scripts/mcp-bridge-auto.jsx`: Main After Effects panel script
 - `install-bridge.js`: Script to install the panel in After Effects
 
-### Building the Project
+### 📦 Building the Project
 
 ```bash
 npm run build
@@ -173,7 +196,7 @@ npm run build
 yarn build
 ```
 
-### Contributing
+### 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
