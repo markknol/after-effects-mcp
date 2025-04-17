@@ -15,7 +15,7 @@
 - [Setup Instructions](#setup-instructions)
   - [Prerequisites](#prerequisites)
   - [Installation](#installation)
-  - [Update MCP Config](#Update MCP Config)
+  - [Update MCP Config](#Update-MCP-Config)
   - [Running the Server](#running-the-server)
 - [Usage Guide](#usage-guide)
   - [Creating Compositions](#creating-compositions)
