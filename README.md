@@ -7,6 +7,10 @@
 
 ✨ A Model Context Protocol (MCP) server for Adobe After Effects that enables AI assistants and other applications to control After Effects through a standardized protocol.
 
+<a href="https://glama.ai/mcp/servers/@Dakkshin/after-effects-mcp">
+  <img width="380" height="200" src="https://glama.ai/mcp/servers/@Dakkshin/after-effects-mcp/badge" alt="mcp-after-effects MCP server" />
+</a>
+
 ## Table of Contents
 - [Features](#features)
   - [Core Composition Features](#core-composition-features)
