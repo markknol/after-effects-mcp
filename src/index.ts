@@ -188,6 +188,7 @@ server.tool(
       "getProjectInfo", 
       "getLayerInfo", 
       "createComposition",
+      "updateComposition",
       "createTextLayer",
       "createShapeLayer",
       "createSolidLayer",
@@ -397,17 +398,27 @@ server.tool(
   "create-composition",
   "Create a new composition in After Effects with specified parameters",
   {
-    name: z.string().describe("Name of the composition"),
-    width: z.number().int().positive().describe("Width of the composition in pixels"),
-    height: z.number().int().positive().describe("Height of the composition in pixels"),
-    pixelAspect: z.number().positive().optional().describe("Pixel aspect ratio (default: 1.0)"),
-    duration: z.number().positive().optional().describe("Duration in seconds (default: 10.0)"),
-    frameRate: z.number().positive().optional().describe("Frame rate in frames per second (default: 30.0)"),
+    compName: z.string().optional().describe("Name of the composition to update"),
+    name: z.string().optional().describe("New name for the composition"),
+    width: z.number().int().positive().optional().describe("New width of the composition in pixels"),
+    height: z.number().int().positive().optional().describe("New height of the composition in pixels"),
+    pixelAspect: z.number().positive().optional().describe("New pixel aspect ratio"),
+    duration: z.number().positive().optional().describe("New duration in seconds"),
+    frameRate: z.number().positive().optional().describe("New frame rate in frames per second"),
     backgroundColor: z.object({
       r: z.number().int().min(0).max(255),
       g: z.number().int().min(0).max(255),
       b: z.number().int().min(0).max(255)
-    }).optional().describe("Background color of the composition (RGB values 0-255)")
+    }).optional().describe("New background color of the composition (RGB values 0-255)"),
+    displayStartTime: z.number().optional().describe("New start time of the composition in seconds"),
+    displayStartFrame: z.number().int().optional().describe("New start frame of the composition"),
+    draft3d: z.boolean().optional().describe("Enable/disable Draft 3D mode"),
+    frameBlending: z.boolean().optional().describe("Enable/disable frame blending"),
+    motionBlur: z.boolean().optional().describe("Enable/disable motion blur"),
+    shutterAngle: z.number().int().min(0).max(720).optional().describe("New shutter angle for motion blur"),
+    shutterPhase: z.number().int().optional().describe("New shutter phase for motion blur"),
+    preserveNestedFrameRate: z.boolean().optional().describe("Enable/disable preserve nested frame rate"),
+    resolutionFactor: z.array(z.number().int().min(1).max(16)).length(2).optional().describe("New resolution factor for preview")
   },
   async (params) => {
     try {
@@ -438,7 +449,62 @@ server.tool(
   }
 );
 
-// --- BEGIN NEW TOOLS --- 
+// Add a tool for updating compositions
+server.tool(
+  "update-composition",
+  "Update an existing composition in After Effects with specified parameters",
+  {
+    compIndex: z.number().int().positive().optional().describe("1-based index of the composition to update"),
+    compName: z.string().optional().describe("Name of the composition to update"),
+    name: z.string().optional().describe("New name for the composition"),
+    width: z.number().int().positive().optional().describe("New width of the composition in pixels"),
+    height: z.number().int().positive().optional().describe("New height of the composition in pixels"),
+    pixelAspect: z.number().positive().optional().describe("New pixel aspect ratio"),
+    duration: z.number().positive().optional().describe("New duration in seconds"),
+    frameRate: z.number().positive().optional().describe("New frame rate in frames per second"),
+    backgroundColor: z.object({
+      r: z.number().int().min(0).max(255),
+      g: z.number().int().min(0).max(255),
+      b: z.number().int().min(0).max(255)
+    }).optional().describe("New background color of the composition (RGB values 0-255)"),
+    displayStartTime: z.number().optional().describe("New start time of the composition in seconds"),
+    displayStartFrame: z.number().int().optional().describe("New start frame of the composition"),
+    draft3d: z.boolean().optional().describe("Enable/disable Draft 3D mode"),
+    frameBlending: z.boolean().optional().describe("Enable/disable frame blending"),
+    motionBlur: z.boolean().optional().describe("Enable/disable motion blur"),
+    shutterAngle: z.number().int().min(0).max(720).optional().describe("New shutter angle for motion blur"),
+    shutterPhase: z.number().int().optional().describe("New shutter phase for motion blur"),
+    preserveNestedFrameRate: z.boolean().optional().describe("Enable/disable preserve nested frame rate"),
+    resolutionFactor: z.array(z.number().int().min(1).max(16)).length(2).optional().describe("New resolution factor for preview")
+  },
+  async (params) => {
+    try {
+      // Write command to file for After Effects to pick up
+      writeCommandFile("updateComposition", params);
+      
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Command to update composition has been queued.\n` +
+                  `Please ensure the "MCP Bridge Auto" panel is open in After Effects.\n` +
+                  `Use the "get-results" tool after a few seconds to check for results.`
+          }
+        ]
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error queuing composition update: ${String(error)}`
+          }
+        ],
+        isError: true
+      };
+    }
+  }
+);
 
 // Zod schema for common layer identification
 const LayerIdentifierSchema = {

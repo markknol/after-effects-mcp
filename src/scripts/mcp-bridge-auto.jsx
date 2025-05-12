@@ -8,6 +8,7 @@
 #include "createShapeLayer.jsx"
 #include "createSolidLayer.jsx"
 #include "setLayerProperties.jsx"
+#include "updateComposition.jsx"
 */
 
 // --- Function Definitions ---
@@ -32,6 +33,109 @@ function createComposition(args) {
         }, null, 2);
     } catch (error) {
         return JSON.stringify({ status: "error", message: error.toString() }, null, 2);
+    }
+}
+
+// --- updateComposition (from updateComposition.jsx) --- 
+function updateComposition(args) {
+    try {
+        // Find the composition by index or name
+        var comp = null;
+        
+        if (args.compIndex) {
+            // Find by index
+            if (args.compIndex > 0 && args.compIndex <= app.project.numItems) {
+                var item = app.project.item(args.compIndex);
+                if (item instanceof CompItem) {
+                    comp = item;
+                } else {
+                    throw new Error("Item at index " + args.compIndex + " is not a composition");
+                }
+            } else {
+                throw new Error("Invalid composition index: " + args.compIndex);
+            }
+        } else if (args.compName) {
+            // Find by name
+            for (var i = 1; i <= app.project.numItems; i++) {
+                var item = app.project.item(i);
+                if (item instanceof CompItem && item.name === args.compName) {
+                    comp = item;
+                    break;
+                }
+            }
+            
+            if (!comp) {
+                throw new Error("No composition found with name '" + args.compName + "'");
+            }
+        } else {
+            // Use active composition if no index or name provided
+            if (app.project.activeItem instanceof CompItem) {
+                comp = app.project.activeItem;
+            } else {
+                throw new Error("No composition specified and no active composition");
+            }
+        }
+        
+        // Update composition properties
+        var propertiesUpdated = [];
+        
+        // Update properties if provided
+        args.name !== undefined && (comp.name = args.name, propertiesUpdated.push("name"));
+        args.width !== undefined && (comp.width = parseInt(args.width,10), propertiesUpdated.push("width"));
+        args.height !== undefined && (comp.height = parseInt(args.height,10), propertiesUpdated.push("height"));
+        args.pixelAspect !== undefined && (comp.pixelAspect = parseFloat(args.pixelAspect), propertiesUpdated.push("pixelAspect"));
+        args.duration !== undefined && (comp.duration = parseFloat(args.duration), propertiesUpdated.push("duration"));
+        args.frameRate !== undefined && (comp.frameRate = parseFloat(args.frameRate), propertiesUpdated.push("frameRate"));
+        args.displayStartTime !== undefined && (comp.displayStartTime = parseFloat(args.displayStartTime), propertiesUpdated.push("displayStartTime"));
+        args.displayStartFrame !== undefined && (comp.displayStartFrame = parseInt(args.displayStartFrame,10), propertiesUpdated.push("displayStartFrame"));
+        args.draft3d !== undefined && (comp.draft3d = !!args.draft3d, propertiesUpdated.push("draft3d"));
+        args.frameBlending !== undefined && (comp.frameBlending = !!args.frameBlending, propertiesUpdated.push("frameBlending"));
+        args.motionBlur !== undefined && (comp.motionBlur = !!args.motionBlur, propertiesUpdated.push("motionBlur"));
+        args.shutterAngle !== undefined && (comp.shutterAngle = parseInt(args.shutterAngle,10), propertiesUpdated.push("shutterAngle"));
+        args.shutterPhase !== undefined && (comp.shutterPhase = parseInt(args.shutterPhase,10), propertiesUpdated.push("shutterPhase"));
+        args.preserveNestedFrameRate !== undefined && (comp.preserveNestedFrameRate = !!args.preserveNestedFrameRate, propertiesUpdated.push("preserveNestedFrameRate"));
+        args.resolutionFactor !== undefined && (comp.resolutionFactor = args.resolutionFactor, propertiesUpdated.push("resolutionFactor"));
+        
+        if (args.backgroundColor) {
+            comp.bgColor = [
+                args.backgroundColor.r/255, 
+                args.backgroundColor.g/255, 
+                args.backgroundColor.b/255
+            ];
+            propertiesUpdated.push("bgColor");
+        }
+
+        // Return success with updated composition details
+        return JSON.stringify({
+            status: "success",
+            message: "Composition updated successfully",
+            propertiesUpdated: propertiesUpdated,
+            composition: {
+                name: comp.name,
+                id: comp.id,
+                width: comp.width,
+                height: comp.height,
+                pixelAspect: comp.pixelAspect,
+                duration: comp.duration,
+                frameRate: comp.frameRate,
+                bgColor: comp.bgColor,
+                displayStartTime: comp.displayStartTime,
+                displayStartFrame: comp.displayStartFrame,
+                draft3d: comp.draft3d,
+                frameBlending: comp.frameBlending,
+                motionBlur: comp.motionBlur,
+                shutterAngle: comp.shutterAngle,
+                shutterPhase: comp.shutterPhase,
+                preserveNestedFrameRate: comp.preserveNestedFrameRate,
+                resolutionFactor: comp.resolutionFactor
+            }
+        }, null, 2);
+    } catch (error) {
+        // Return error message
+        return JSON.stringify({
+            status: "error",
+            message: error.toString()
+        }, null, 2);
     }
 }
 
@@ -799,7 +903,15 @@ function applyEffectTemplate(args) {
 
 
 // Create panel interface
-var panel = (this instanceof Panel) ? this : new Window("palette", "MCP Bridge Auto", undefined);
+
+var logText;
+
+var panel = (this instanceof Panel) ? this : new Window("window", "MCP Bridge Auto", undefined, {resizeable: true});
+panel.onResizing = panel.onResize = function() {
+    logText.preferredSize.height = this.height - 100;
+    this.layout.resize();
+
+};
 panel.orientation = "column";
 panel.alignChildren = ["fill", "top"];
 panel.spacing = 10;
@@ -813,8 +925,9 @@ statusText.alignment = ["fill", "top"];
 var logPanel = panel.add("panel", undefined, "Command Log");
 logPanel.orientation = "column";
 logPanel.alignChildren = ["fill", "fill"];
-var logText = logPanel.add("edittext", undefined, "", {multiline: true, readonly: true});
-logText.preferredSize.height = 200;
+logText = logPanel.add("edittext", undefined, "", {multiline: true, readonly: true});
+logText.preferredSize.width = 400;
+logText.preferredSize.height = 300;
 
 // Auto-run checkbox
 var autoRunCheckbox = panel.add("checkbox", undefined, "Auto-run commands");
@@ -975,6 +1088,11 @@ function executeCommand(command, args) {
                 logToPanel("Calling createComposition function...");
                 result = createComposition(args);
                 logToPanel("Returned from createComposition.");
+                break;
+            case "updateComposition":
+                logToPanel("Calling updateComposition function...");
+                result = updateComposition(args);
+                logToPanel("Returned from updateComposition.");
                 break;
             case "createTextLayer":
                 logToPanel("Calling createTextLayer function...");
@@ -1194,3 +1312,4 @@ if (panel instanceof Window) {
     panel.center();
     panel.show();
 }
+
